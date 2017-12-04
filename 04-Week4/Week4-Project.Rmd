@@ -1,0 +1,208 @@
+---
+title: "Week4-Project"
+author: "Muthukumar Srinivasan & Rajagopal Srinivasan"
+date: "December 2, 2017"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+
+###
+# 1. SETUP 
+###
+library(igraph)
+###
+# 2. LOAD DATA
+
+# --DATASET 1: edgelist--
+
+nodes <- read.csv("https://raw.githubusercontent.com/muthukumars/DATA-620/master/04-Week4/Dataset1-Media-Example-NODES.csv", header=T, as.is=T)
+links <- read.csv("https://raw.githubusercontent.com/muthukumars/DATA-620/master/04-Week4/Dataset1-Media-Example-EDGES.csv", header=T, as.is=T)
+
+head(nodes)
+head(links)
+
+nrow(nodes); length(unique(nodes$id))
+nrow(links); nrow(unique(links[,c("from", "to")]))
+nrow(unique(links[,c("from", "to", "type")]))
+
+# Collapse multiple links of the same type between the same two nodes
+# by summing their weights, using aggregate() by "from", "to", & "type":
+links <- aggregate(links[,3], links[,-3], sum)
+links <- links[order(links$from, links$to),]
+colnames(links)[4] <- "weight"
+rownames(links) <- NULL
+
+nrow(links); nrow(unique(links[,c("from", "to")]))
+
+# --DATASET 2: matrix--
+
+nodes2 <- read.csv("https://raw.githubusercontent.com/muthukumars/DATA-620/master/04-Week4/Dataset2-Media-User-Example-NODES.csv", header=T, as.is=T)
+links2 <- read.csv("https://raw.githubusercontent.com/muthukumars/DATA-620/master/04-Week4/Dataset2-Media-User-Example-EDGES.csv", header=T, row.names=1)
+
+# Examine the data:
+head(nodes2)
+head(links2)
+
+# links2 is a matrix for a two-mode network:
+links2 <- as.matrix(links2)
+dim(links2)
+dim(nodes2)
+
+# ================ 3. Plotting networks with igraph ================
+
+  
+#  ------->> Turning networks into igraph objects  --------
+
+library("igraph")
+
+# DATASET 1 
+
+# Converting the data to an igraph object:
+# The graph_from_data_frame() function takes two data frames: 'd' and 'vertices'.
+# 'd' describes the edges of the network - it should start with two columns 
+# containing the source and target node IDs for each network tie.
+# 'vertices' should start with a column of node IDs.
+# Any additional columns in either data frame are interpreted as attributes.
+
+net <- graph_from_data_frame(d=links, vertices=nodes, directed=T) 
+
+# Examine the resulting object:
+class(net)
+net 
+
+# We can access the nodes, edges, and their attributes:
+E(net)
+V(net)
+E(net)$type
+V(net)$media
+
+# Or find specific nodes and edges by attribute:
+# (that returns objects of type vertex sequence / edge sequence)
+V(net)[media=="BBC"]
+E(net)[type=="mention"]
+
+
+# If you need them, you can extract an edge list 
+# or a matrix back from the igraph networks.
+as_edgelist(net, names=T)
+as_adjacency_matrix(net, attr="weight")
+
+# Or data frames describing nodes and edges:
+as_data_frame(net, what="edges")
+as_data_frame(net, what="vertices")
+
+
+# You can also look at the network matrix directly:
+net[1,]
+net[5,7]
+
+# First attempt to plot the graph:
+plot(net) # not pretty!
+
+# Removing loops from the graph:
+net <- simplify(net, remove.multiple = F, remove.loops = T) 
+
+# Let's and reduce the arrow size and remove the labels:
+plot(net, edge.arrow.size=.4,vertex.label=NA)
+ 
+
+
+# DATASET 2 
+
+
+head(nodes2)
+head(links2)
+
+# Create an igraph network object from the two-mode matrix: 
+net2 <- graph_from_incidence_matrix(links2)
+
+# A built-in vertex attribute 'type' shows which mode vertices belong to.
+table(V(net2)$type)
+
+plot(net2,vertex.label=NA)
+
+# Examine the resulting object:
+class(net2)
+net2 
+
+###
+# CALCULATE CENTRALITY MEASURES FOR  DATA Set1
+###
+ 
+# Indegree centrality measures how many people direct social 
+# talk to the individual.
+indegree_social <- degree(net, mode='in')
+indegree_social
+ 
+# Outdegree centrality measures how many people the actor directs 
+# social talk to. 
+outdegree_social <- degree(net, mode='out')
+outdegree_social
+ 
+# Closeness is the mean geodesic distance between a given node and
+# all other nodes with paths from the given node to the other
+# node. This is close to being the mean shortest path, but 
+# geodesic distances give higher values for more central nodes.
+#
+# In a directed network, we can think of in-closeness centrality
+# as the average number of steps one would have to go through to
+# get TO a given node FROM all other reachable nodes in the
+# network. Out-closeness centrality, not surprisingly, measures
+# the same thing with the directionality reversed.
+ 
+# In-closeness centrality
+incloseness_social <- closeness(net, mode='in')
+incloseness_social
+ 
+# Out-closeness
+outcloseness_social <- closeness(net, mode='out')
+outcloseness_social
+
+###
+# CALCULATE CENTRALITY MEASURES FOR  DATA Set2
+###
+ 
+# Indegree centrality measures how many people direct social 
+# talk to the individual.
+indegree_social <- degree(net2, mode='in')
+indegree_social
+ 
+# Outdegree centrality measures how many people the actor directs 
+# social talk to. 
+outdegree_social <- degree(net2, mode='out')
+outdegree_social
+ 
+# Closeness is the mean geodesic distance between a given node and
+# all other nodes with paths from the given node to the other
+# node. This is close to being the mean shortest path, but 
+# geodesic distances give higher values for more central nodes.
+#
+# In a directed network, we can think of in-closeness centrality
+# as the average number of steps one would have to go through to
+# get TO a given node FROM all other reachable nodes in the
+# network. Out-closeness centrality, not surprisingly, measures
+# the same thing with the directionality reversed.
+ 
+# In-closeness centrality
+incloseness_social <- closeness(net2, mode='in')
+incloseness_social
+ 
+# Out-closeness
+outcloseness_social <- closeness(net2, mode='out')
+outcloseness_social
+
+# Eigenvector centrality
+
+ds1_undirected <- as.undirected(net, mode='collapse')
+ev_obj_social <- evcent(ds1_undirected)
+eigen_social <- ev_obj_social$vector
+eigen_social
+
+```
